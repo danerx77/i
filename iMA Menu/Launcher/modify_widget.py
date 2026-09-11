@@ -14,6 +14,8 @@ from PyQt5.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QIcon, QPix
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QEvent, QPoint, QPointF, QRect, QRectF, QTimer, QObject, QAbstractListModel, QModelIndex, QFileInfo
 try: from PyQt5 import QtSvg
 except ImportError: QtSvg = None
+import i18n
+from i18n import _  # noqa: F401
 from utils import resource_path, UnsavedChangesDialog, safe_file_write, get_font_icon, get_mdl2_icon, NILESOFT_FONT_FAMILY, _init_nilesoft_font, FlowLayout, normalize_path, ModernComboBox, render_nss_asset_pixmap, PillTabButton, PillPushButton, PillLineEdit
 from theme_editor_widget import MinimalColorPickerDialog
 from nss_parser import (
@@ -588,9 +590,21 @@ class VisibilityCard(QPushButton):
     def __init__(self, key, title, subtitle, icon_code, parent=None):
         super().__init__(parent)
         self.key = key
-        self.title_text = title
-        self.sub_text = subtitle
+        self.title_text = i18n.translate(title)
+        self.sub_text = i18n.translate(subtitle)
         self.icon_code = icon_code
+        i18n.bind_custom(self, VisibilityCard._apply_language, title)
+        i18n.bind_custom(self, VisibilityCard._apply_subtitle, subtitle)
+
+    @staticmethod
+    def _apply_language(card, translated_title):
+        card.title_text = translated_title
+        card.update()
+
+    @staticmethod
+    def _apply_subtitle(card, translated_subtitle):
+        card.sub_text = translated_subtitle
+        card.update()
         self.setCheckable(True)
         self.setFixedHeight(70)
         self.setCursor(Qt.PointingHandCursor)
@@ -761,8 +775,14 @@ class TypePill(QPushButton):
     def __init__(self, val, text, icon_code=None, parent=None):
         super().__init__(parent)
         self.val = val
-        self.title_text = text
+        self.title_text = i18n.translate(text)
         self.icon_code = icon_code
+        i18n.bind_custom(self, TypePill._apply_language, text)
+
+    @staticmethod
+    def _apply_language(pill, translated_text):
+        pill.title_text = translated_text
+        pill.update()
         self.setCheckable(True)
         self.setFixedHeight(32)
         self.setCursor(Qt.PointingHandCursor)
@@ -1228,24 +1248,24 @@ class NSSItemDelegate(QStyledItemDelegate):
         if data.get('type') == 'modify':
             wid = str(props.get('where.id', '')).strip('\'" ')
             if wid:
-                draw_part("Modify ID: ", "#e78284", f_bold)
+                draw_part(i18n.translate("Modify ID: "), "#e78284", f_bold)
                 draw_part(wid, "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
             elif props.get('find'):
-                draw_part("Modify: ", "#e78284", f_bold)
+                draw_part(i18n.translate("Modify: "), "#e78284", f_bold)
                 draw_part(props['find'].strip(chr(39)+chr(34)), "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
             elif props.get('type'):
-                draw_part(f"All {props['type'].title()}s", "#e78284", f_bold)
+                draw_part(i18n.translate(f"All {props['type'].title()}s"), "#e78284", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
             else:
-                draw_part("Global Rule", "#e78284", f_bold)
+                draw_part(i18n.translate("Global Rule"), "#e78284", f_bold)
         else:
             # item or menu - show title
             raw_title = props.get('title') or props.get('find') or props.get('where') or props.get('cmd') or 'Unnamed'
@@ -1256,18 +1276,18 @@ class NSSItemDelegate(QStyledItemDelegate):
             draw_part(t_str, "#ffffff", f_bold)
             
         if props.get('in'):
-            draw_part(" in ", "#A0A0A0", f_small)
+            draw_part(" " + i18n.translate("in") + " ", "#A0A0A0", f_small)
             draw_part(props['in'].strip(chr(39)+chr(34)), "#ea999c", f_bold)
         
         # Badges / Summary
         bx = rect.x() + 85; by = rect.y() + 48; acts = []
-        if props.get('title'): acts.append(("Renamed", "#838ba7"))
-        if props.get('icon') or props.get('image'): acts.append(("Icons", "#8caaee"))
+        if props.get('title'): acts.append((i18n.translate("Renamed"), "#838ba7"))
+        if props.get('icon') or props.get('image'): acts.append((i18n.translate("Icons"), "#8caaee"))
         v = props.get('vis', '').lower()
-        if v in ('vis.remove', 'vis.hidden', 'remove', 'hidden'): acts.append(("Hidden", "#e78284"))
-        elif v and v != 'normal': acts.append(("Part Hidden", "#ca9ee6"))
-        elif v: acts.append((f"Vis: {v}", "#e78284"))
-        if 'menu' in props and props.get('menu') is not None: acts.append(("Moved", "#ef9f76"))
+        if v in ('vis.remove', 'vis.hidden', 'remove', 'hidden'): acts.append((i18n.translate("Hidden"), "#e78284"))
+        elif v and v != 'normal': acts.append((i18n.translate("Part Hidden"), "#ca9ee6"))
+        elif v: acts.append((i18n.translate(f"Vis: {v}"), "#e78284"))
+        if 'menu' in props and props.get('menu') is not None: acts.append((i18n.translate("Moved"), "#ef9f76"))
         if props.get('pos'): acts.append((f"Pos: {props['pos']}", "#a6d189"))
         if props.get('sep'): acts.append(("Separator", "#e5c890"))
         
@@ -1502,7 +1522,8 @@ class FilterBar(QWidget):
         for i, (tag, color) in enumerate(tags_with_colors):
             btn = FilterTag(tag, color); self.group.addButton(btn, i); self.layout.addWidget(btn)
             if i == 0: btn.setChecked(True)
-        self.group.buttonClicked.connect(lambda b: self.filter_changed.emit(b.text()))
+        # captions are translated, the emitted filter value must stay canonical
+        self.group.buttonClicked.connect(lambda b: self.filter_changed.emit(i18n.canonical(b.text())))
 
 def _resolve_icon_filepath(raw_path, nss_file=None, root_dir=None):
     if not raw_path:
@@ -1995,7 +2016,7 @@ class ImportedItemCard(QFrame):
         val = data.get('image') or data.get('icon') or ''
         cmd_val = data.get('cmd') or data.get('path') or ''
         _update_label_asset(self.icon_label, val, self.data.get('file'), cmd=cmd_val)
-        title = data.get('title', 'No Title'); typ = self.data.get('type', 'item').title()
+        title = data.get('title') or i18n.translate('No Title'); typ = self.data.get('type', 'item').title()
         self.title_label.setText(f"{typ}: <span style='color: #e78284;'>{title}</span>")
         fname = os.path.basename(self.data.get('file', 'unknown'))
         self.desc_label.setText(f"Source: <span style='color: #ea999c;'>{fname}</span>" + (f" \u2022 Cmd: <span style='color: #b0b0b0;'>{data['cmd'][:50]}...</span>" if 'cmd' in data else ""))
@@ -2544,7 +2565,8 @@ class ManualSyncConflictDialog(QDialog):
             cb = QCheckBox(); cb.setStyleSheet("QCheckBox::indicator { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #333333; background: transparent; } QCheckBox::indicator:checked { background: #e78284; border: 2px solid #e78284; }"); cb.setChecked(False); cb.setProperty("item_idx", idx); self.checkboxes.append(cb); card_lay.addWidget(cb)
             val = item['props'].get('image') or item['props'].get('icon') or ''; codes = _extract_glyph_codes(val); colors = _extract_all_colors(val)
             prev = GlyphPreviewLabel(codes, size=24, font_family=NILESOFT_FONT_FAMILY, colors=colors); prev.setFixedSize(36, 36); card_lay.addWidget(prev)
-            title = QLabel(item['props'].get('title', 'Unknown Item')); title.setStyleSheet("color: white; font-weight: bold; font-size: 14px;"); card_lay.addWidget(title)
+            title = QLabel()
+            i18n.raw(title, item['props'].get('title') or i18n.translate('Unknown Item')); title.setStyleSheet("color: white; font-weight: bold; font-size: 14px;"); card_lay.addWidget(title)
             card_lay.addStretch(); self.scroll_layout.addWidget(card)
         scroll.setWidget(self.scroll_widget); cl.addWidget(scroll)
         btns = QHBoxLayout(); btns.addStretch()
@@ -4315,12 +4337,12 @@ class ImportsWidget(QWidget):
 
     def filter_items(self):
         ab = self.action_tags.group.checkedButton()
-        action_tag = ab.text() if ab else "All"
+        action_tag = i18n.canonical(ab.text()) if ab else "All"
         if self.curr_filter == "rules":
             self.model.filter(self.search.text(), action_tag=action_tag)
         else:
             cb = self.type_tags.group.checkedButton()
-            type_tag = cb.text() if cb else "All"
+            type_tag = i18n.canonical(cb.text()) if cb else "All"
             self.model.filter(self.search.text(), self.curr_filter, type_tag=type_tag, action_tag=action_tag)
 
     def set_file_filter(self, fp):

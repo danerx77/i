@@ -78,6 +78,19 @@ Right-Click on Taskbar > iMA Menu > Settings
 
 ---
 
+## Localization 🌍
+
+The launcher UI is fully localizable at runtime — no restart needed.
+
+* **English** is the source language and the default.
+* **Polski (Polish)** ships built in: open **Settings → Language** and pick *Polski*; every screen, dialog, tooltip and status message switches instantly and the choice is stored in `cache/settings.json`.
+
+Translations live in [`iMA Menu/Launcher/locales/`](iMA%20Menu/Launcher/locales) as plain JSON catalogues (`en.json` is the source of truth, `pl.json` the Polish translation), driven by the [`i18n.py`](iMA%20Menu/Launcher/i18n.py) runtime layer. Adding another language means copying `en.json`, translating the values and registering the code in `i18n.LANGUAGES` — see [`iMA Menu/Launcher/I18N.md`](iMA%20Menu/Launcher/I18N.md) for details and for the tooling (`tools/i18n_extract.py`, `tools/build_catalog.py`, `tools/test_i18n.py`).
+
+> **PL:** Interfejs launchera jest w pełni tłumaczony w trakcie działania. W **Ustawienia → Język** wybierz *Polski* — wszystkie ekrany, okna dialogowe, podpowiedzi i komunikaty przełączą się natychmiast, a wybór zostanie zapisany.
+
+---
+
 ## Contributing 🤝
 
 We welcome contributions! If you have suggestions, bug reports, or want to contribute code, please open an issue or pull request on GitHub.

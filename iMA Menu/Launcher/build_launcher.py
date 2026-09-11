@@ -53,6 +53,7 @@ datas = [
     ('cursors.json', '.'),
     ('cursors_previews.json', '.'),
     ('cache/plugins.json', 'cache'),
+    ('locales', 'locales'),
 ]
 
 a = Analysis(
@@ -61,7 +62,7 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=[
-        'encodings', 'glyphs_data', 'modify_widget',
+        'encodings', 'i18n', 'glyphs_data', 'modify_widget',
         'theme_editor_widget', 'theme_switcher_widget', 'cursor_widget',
         'github_client', 'utils', 'cloud_sync', 'nss_error_monitor',
         'plugin_registry', 'nss_parser', 'plugin_workers'

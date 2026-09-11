@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPoint
 from PyQt5.QtGui import QFont, QIcon, QColor
 
+import i18n
+from i18n import _  # noqa: F401
 from utils import (
     PillPushButton, PillLineEdit, ModernComboBox, render_nss_asset_pixmap, get_mdl2_icon,
     validate_nss_syntax, FlowLayout
@@ -1742,8 +1744,8 @@ class BuilderItemCard(QFrame):
 
         # Title
         raw_title = props.get('title', '')
-        clean_title = str(raw_title).strip('\'"') or "(Unnamed)"
-        self.title_lbl.setText(clean_title)
+        clean_title = str(raw_title).strip('\'"') or i18n.translate("(Unnamed)")
+        i18n.set_text_raw(self.title_lbl, clean_title)
 
         # Icon / Image rendering
         raw_icon = str(props.get('image') or props.get('icon') or '').strip('\'"')
@@ -1769,7 +1771,7 @@ class BuilderItemCard(QFrame):
             self.sub_lbl.setText(f"Submenu Folder • {children_count} items nested inside ({state_desc})")
             self._add_badge(f"Menu ({children_count})", "#ca9ee6")
         elif cmd:
-            self.sub_lbl.setText(cmd[:75] + ("..." if len(cmd) > 75 else ""))
+            i18n.set_text_raw(self.sub_lbl, cmd[:75] + ("..." if len(cmd) > 75 else ""))
         else:
             self.sub_lbl.setText("Shortcut Action")
 
@@ -2206,9 +2208,10 @@ class MenuBuilderWidget(QWidget):
 
     def _on_filter_changed(self, tag_btn):
         if hasattr(tag_btn, 'text'):
-            self._current_type_filter = tag_btn.text().strip()
+            # button captions are translated, the filter value must stay canonical
+            self._current_type_filter = i18n.canonical(tag_btn.text().strip())
         elif isinstance(tag_btn, str):
-            self._current_type_filter = tag_btn.strip()
+            self._current_type_filter = i18n.canonical(tag_btn.strip())
         else:
             self._current_type_filter = "All"
         self._apply_filters()

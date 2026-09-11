@@ -126,7 +126,7 @@ from utils import (resource_path, safe_file_write, set_window_effect, UnsavedCha
                    trigger_shell_reload, terminate_plugin_processes, get_mdl2_icon, global_undo_stack,
                    ModernDialog, ModernSwitch, PillProgressBar, FlowLayout, normalize_path,
                    make_circular_pixmap, make_initial_avatar_pixmap, AccountProfileDialog,
-                   CapsuleActionButton, PillTabButton, PillPushButton)
+                   CapsuleActionButton, PillTabButton, PillPushButton, ModernComboBox)
 from plugin_registry import PluginRegistry, git_blob_sha, version_cmp, atomic_json_write, safe_json_read, delete_to_recycle_bin
 from plugin_workers import (
     FetchPluginsThread, IconDownloadWorker, InstallationWorker,
@@ -238,6 +238,15 @@ def _cleanup_old_executables():
         pass
 
 threading.Thread(target=_cleanup_old_executables, daemon=True).start()
+
+# ---------------------------------------------------------------------------
+# i18n — load the saved UI language and hook the Qt text setters *before* any
+# widget is created, so every screen picks up the translation automatically.
+# ---------------------------------------------------------------------------
+import i18n
+from i18n import _  # noqa: F401  (used for explicit, in-place translations)
+
+i18n.setup(settings_path=SETTINGS_FILE)
 
 def _restore_bundled_assets():
     if not getattr(sys, 'frozen', False): return
@@ -1428,9 +1437,21 @@ class NavTabButton(QPushButton):
         self.setCheckable(True)
         self.setFixedSize(66, 68)
         self.setCursor(Qt.PointingHandCursor)
+        # the label is painted in paintEvent, so register it for live retranslation
+        self._label_msgid = label_text
         self.label_text = label_text
         self.icon_pix = load_crisp_pixmap(resource_path(f'icons/{icon_name}'), 28)
         self.setObjectName("navTabButton")
+        i18n.bind_custom(self, NavTabButton._apply_label, label_text)
+
+    @staticmethod
+    def _apply_label(button, translated_text):
+        button.label_text = translated_text
+        try:
+            button.setToolTip(translated_text)
+        except Exception:
+            pass
+        button.update()
 
     def enterEvent(self, event):
         super().enterEvent(event)
@@ -2674,13 +2695,15 @@ class PluginManager(QWidget):
         text_layout.setSpacing(3)
         text_layout.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
 
-        title = QLabel(plugin_name)
+        title = QLabel(); i18n.raw(title, plugin_name)
         title.setFont(QFont('Segoe UI Variable Display', 12, QFont.Bold))
         title.setStyleSheet("color: #ffffff; background: transparent;")
         title.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         text_layout.addWidget(title)
 
-        description = QLabel(plugin.get('description', 'No description available.'))
+        description = QLabel()
+        description_text = plugin.get('description') or ''
+        i18n.raw(description, description_text if description_text else i18n.translate('No description available.'))
         description.setFont(QFont('Segoe UI Variable Text', 10))
         description.setStyleSheet("color: #8c92a4; background: transparent;")
         description.setWordWrap(True)
@@ -3459,7 +3482,8 @@ class PluginManager(QWidget):
 
         self.auto_update_sw = self._create_setting_row(layout, "Auto Update Plugins", "Automatically install updates on startup", "auto_update")
         self.auto_check_sw = self._create_setting_row(layout, "Auto Check Updates", "Show notification when updates are available", "auto_check_updates")
-        
+        self._create_language_row(layout)
+
         self._create_import_row(layout)
         self._create_sync_section(layout)
         layout.addStretch()
@@ -3527,7 +3551,8 @@ class PluginManager(QWidget):
             if download_url:
                 self._update_dialog_active = True
                 self.latest_app_version = latest_version
-                self.ver_label.setText(f"Current: {VERSION} | <span style='color: #e78284;'>Latest: {latest_version}</span>")
+                self.ver_label.setText(i18n.translate(
+                    f"Current: {VERSION} | <span style='color: #e78284;'>Latest: {latest_version}</span>"))
                 title = 'Re-install Launcher' if force else 'Update Available'
                 msg = f"Re-install iMA Menu Launcher <b>v{latest_version}</b> now?" if force else f"A new version of iMA Menu Launcher is available: <b>v{latest_version}</b><br><br>Would you like to download and install it now?"
                 btn_txt = 'Re-install Now' if force else 'Update Now'
@@ -3693,6 +3718,57 @@ class PluginManager(QWidget):
         if getattr(self, 'theme_switcher_page', None): self.theme_switcher_page.auto_save = enabled
         if getattr(self, 'theme_editor_page', None): self.theme_editor_page.auto_save = enabled
 
+    def _create_language_row(self, layout):
+        """UI language picker — switching applies immediately (live retranslation)."""
+        row = QFrame(); row.setStyleSheet("QFrame { background: rgba(255,255,255,0.04); border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); } QFrame:hover { background: rgba(255,255,255,0.06); }")
+        rl = QHBoxLayout(row); rl.setContentsMargins(20, 15, 20, 15)
+        v = QVBoxLayout()
+        t = QLabel("Language"); t.setStyleSheet("color: white; font-size: 15px; font-weight: bold; border: none; background: transparent;")
+        d = QLabel("Interface language"); d.setStyleSheet("color: #b0b0b0; font-size: 12px; border: none; background: transparent;")
+        v.addWidget(t); v.addWidget(d); rl.addLayout(v); rl.addStretch()
+
+        self._language_codes = []
+        self.language_combo = ModernComboBox(self)
+        self.language_combo.setFixedWidth(170)
+        self.language_combo.setFocusPolicy(Qt.StrongFocus)
+        for code, native_name, _english_name in i18n.available_languages():
+            self._language_codes.append(code)
+            self.language_combo.addItem(native_name, code)
+        current = i18n.get_language()
+        index = self._language_codes.index(current) if current in self._language_codes else 0
+        self.language_combo.setCurrentIndex(index)
+        self.language_combo.currentIndexChanged.connect(self._on_language_selected)
+        rl.addWidget(self.language_combo); layout.addWidget(row)
+
+    def _on_language_selected(self, index):
+        try:
+            code = self.language_combo.itemData(index)
+            if not code:
+                code = self._language_codes[index]
+        except Exception:
+            return
+        if code == i18n.get_language():
+            return
+        i18n.set_language(code)
+        self._refresh_after_language_change()
+
+    def _refresh_after_language_change(self):
+        """Rebuild the screens whose content is generated dynamically."""
+        try:
+            self.setWindowTitle("iMA Menu")
+        except Exception:
+            pass
+        try:
+            if getattr(self, 'stacked_widget', None) is not None and \
+                    self.stacked_widget.currentWidget() is getattr(self, 'plugins_page', None):
+                self.render_current_plugins_tab()
+        except Exception:
+            pass
+        try:
+            self.show_sync_status(i18n.translate("Language") + ": " + i18n.get_language_name())
+        except Exception:
+            pass
+
     def _create_import_row(self, layout):
         row = QFrame(); row.setStyleSheet("QFrame { background: rgba(255,255,255,0.04); border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); } QFrame:hover { background: rgba(255,255,255,0.06); }")
         rl = QHBoxLayout(row); rl.setContentsMargins(20, 15, 20, 15)
@@ -3733,8 +3809,8 @@ class PluginManager(QWidget):
                 path = path.group(1)
                 item = QFrame(); item.setStyleSheet("QFrame { background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); }")
                 il = QHBoxLayout(item); il.setContentsMargins(15, 10, 15, 10)
-                iv = QVBoxLayout(); it = QLabel(os.path.basename(path)); it.setStyleSheet("color: white; font-weight: bold; border: none; font-size: 14px; background: transparent;")
-                ip = QLabel(path); ip.setStyleSheet("color: #888888; font-size: 11px; border: none; background: transparent;")
+                iv = QVBoxLayout(); it = QLabel(); i18n.raw(it, os.path.basename(path)); it.setStyleSheet("color: white; font-weight: bold; border: none; font-size: 14px; background: transparent;")
+                ip = QLabel(); i18n.raw(ip, path); ip.setStyleSheet("color: #888888; font-size: 11px; border: none; background: transparent;")
                 iv.addWidget(it); iv.addWidget(ip); il.addLayout(iv); il.addStretch()
                 
                 open_btn = QPushButton(); open_btn.setFixedSize(30, 30); open_btn.setIcon(QIcon(resource_path('icons/open.png'))); open_btn.setIconSize(QSize(20, 20))

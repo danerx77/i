@@ -30,6 +30,9 @@ from PyQt5.QtCore import (Qt, QRunnable, pyqtSignal, QObject, QThreadPool, QEven
 try: from PyQt5 import QtSvg
 except ImportError: QtSvg = None
 
+import i18n
+from i18n import _  # noqa: F401  (explicit translations)
+
 global_undo_stack = QUndoStack()
 
 @functools.lru_cache(maxsize=512)
@@ -1314,7 +1317,7 @@ class ModernDialog(QDialog):
         self.add_button("Close", "secondaryButton", self.accept)
 
     def add_button(self, text, style_obj, callback):
-        if self.bl.count() == 1 and isinstance(self.bl.itemAt(0).widget(), QPushButton) and self.bl.itemAt(0).widget().text() == "Close":
+        if self.bl.count() == 1 and isinstance(self.bl.itemAt(0).widget(), QPushButton) and i18n.same(self.bl.itemAt(0).widget().text(), "Close"):
             w = self.bl.itemAt(0).widget()
             self.bl.removeWidget(w)
             w.hide()
@@ -1614,6 +1617,17 @@ class CapsuleActionButton(QPushButton):
             self._dot_timer.start()
             self._spin_timer.start()
 
+        # the caption is painted from _get_display_text(): refresh it on language change
+        i18n.register_refresh(self, CapsuleActionButton._retranslate)
+
+    @staticmethod
+    def _retranslate(button):
+        try:
+            button._update_dimensions(animated=False)
+            button.update()
+        except Exception:
+            pass
+
     def set_compact(self, compact=True):
         if self._compact != compact:
             self._compact = compact
@@ -1629,9 +1643,9 @@ class CapsuleActionButton(QPushButton):
 
     def _get_display_text(self):
         if self._custom_text is not None:
-            return self._custom_text
+            return i18n.translate(self._custom_text)
         if self._action_type == 'installing':
-            return "Installing" + ("." * self._dot_count)
+            return i18n.translate("Installing") + ("." * self._dot_count)
         defaults = {
             'install': 'Install',
             'uninstall': 'Uninstall',
@@ -1642,7 +1656,7 @@ class CapsuleActionButton(QPushButton):
             'queued': 'Queued',
             'cancel': 'Cancel'
         }
-        return defaults.get(self._action_type, self._action_type.capitalize())
+        return i18n.translate(defaults.get(self._action_type, self._action_type.capitalize()))
 
     def _calculate_pill_width(self):
         txt = "Installing..." if self._action_type == 'installing' else self._get_display_text()

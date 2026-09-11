@@ -23,6 +23,8 @@ from PyQt5.QtCore import Qt, QSize, pyqtSignal, QRect, QPoint, QThread, QObject,
 
 from github_client import github_api_get, cdn_get, get_latest_tree_sha
 from plugin_registry import file_matches_git_sha, git_blob_sha, atomic_json_write
+import i18n
+from i18n import _  # noqa: F401
 from utils import FlowLayout, PillTabButton
 
 
@@ -1301,7 +1303,8 @@ class CursorOptionFrame(QFrame):
         layout.addSpacing(2)
 
         # 3. Theme Title Label
-        self.name_label = QLabel(self.display_name)
+        self.name_label = QLabel()
+        i18n.raw(self.name_label, self.display_name)
         self.name_label.setAlignment(Qt.AlignCenter)
         self.name_label.setStyleSheet("color: white; font-weight: bold; font-size: 12px; background: transparent;")
         self.name_label.setToolTip(self.display_name)
@@ -1541,7 +1544,7 @@ class CursorOptionFrame(QFrame):
 
             if theme_dir and os.path.exists(theme_dir):
                 self.display_name, self.resolved_roles, self.effective_dir = resolve_theme_directory_roles(theme_dir)
-                self.name_label.setText(self.display_name)
+                i18n.set_text_raw(self.name_label, self.display_name)
                 self.name_label.setToolTip(self.display_name)
                 pix = self._get_local_preview_pixmap("Arrow", 64)
                 if not pix.isNull():
@@ -1576,7 +1579,7 @@ class CursorOptionFrame(QFrame):
                 self.download_btn.show()
 
             self.display_name = self.theme_name
-            self.name_label.setText(self.display_name)
+            i18n.set_text_raw(self.name_label, self.display_name)
             self.name_label.setToolTip(self.display_name)
             self._load_cached_arrow_or_placeholder()
 
@@ -1595,7 +1598,7 @@ class CursorOptionFrame(QFrame):
             if self.is_installed and not self.is_default and self.theme_dir and os.path.exists(self.theme_dir):
                 self.display_name, self.resolved_roles, self.effective_dir = resolve_theme_directory_roles(self.theme_dir)
                 if hasattr(self, 'name_label') and self.name_label.text() != self.display_name:
-                    self.name_label.setText(self.display_name)
+                    i18n.set_text_raw(self.name_label, self.display_name)
                     self.name_label.setToolTip(self.display_name)
             else:
                 self.resolved_roles = {}
