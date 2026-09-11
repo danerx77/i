@@ -91,6 +91,49 @@ Translations live in [`iMA Menu/Launcher/locales/`](iMA%20Menu/Launcher/locales)
 
 ---
 
+## Running the launcher from source 🐍
+
+The launcher is a Python 3 / PyQt5 app that lives in [`iMA Menu/Launcher/`](iMA%20Menu/Launcher):
+
+```bat
+cd "iMA Menu\Launcher"
+pip install PyQt5
+python launcher.pyw            :: add --lang pl to start in Polish
+python build_launcher.py       :: package dist\launcher.exe with PyInstaller
+```
+
+Two backend modules were missing from this repository and are included again:
+
+* **`github_client.py`** – the HTTP layer used by the update check, the plugin
+  store, the theme switcher and the cursor browser (GitHub REST API, the
+  `raw.githubusercontent.com` CDN, tree SHAs and streamed downloads with
+  progress/cancel). It is built on `urllib` only, because `requests` is excluded
+  from the packaged exe. Set `GITHUB_TOKEN` to raise the API rate limit from 60
+  to 5 000 requests/hour — everything works without it.
+* **`cloud_sync.py`** – Google Drive backup/restore of `shell.nss`, `imports/`
+  and `theme/`, with the token protected by Windows DPAPI (no `pywin32` needed).
+  It requires OAuth credentials of your own: create a *Desktop app* client in
+  the Google Cloud Console, enable the Drive API, allow the redirect URI
+  `http://localhost:54321` and export `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.
+  Until then **Settings → Cloud Sync** reports that it is not configured instead
+  of failing.
+
+`fonts/glyphs.json` (the searchable glyph database, 3 966 icons) and
+`fonts/nilesoft.ttf` are committed as well — the Modify page needs them and
+PyInstaller bundles them into the exe. `build_launcher.py` also copies
+`shell.exe`/`shell.dll` from the project root before building and skips optional
+assets that a fresh checkout does not have, instead of aborting.
+
+Verification (headless, `QT_QPA_PLATFORM=offscreen` on Linux):
+
+```bash
+python tools/test_i18n.py                # catalogues, hooks, live retranslation
+python tools/test_i18n_integration.py    # the real launcher widgets
+python tools/test_github_client.py       # backend API contract  (--live hits GitHub)
+```
+
+---
+
 ## Contributing 🤝
 
 We welcome contributions! If you have suggestions, bug reports, or want to contribute code, please open an issue or pull request on GitHub.

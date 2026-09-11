@@ -24,6 +24,12 @@ CATALOG_VERSION = 1
 # with currentText(), font names, log lines parsed by nss_error_monitor, ...
 # --------------------------------------------------------------------------- #
 EXCLUDE = {
+    # --- backend modules (github_client.py / cloud_sync.py): URLs, HTTP headers
+    #     and developer-facing assertions must never be translated -----------
+    "Content-type", "text/html; charset=utf-8", "download_file() needs a URL",
+    "{}/rate_limit", "{}/repos/{}/branches/{}", "{}/repos/{}/git/commits/{}",
+    "{}/{}?alt=media", "{}/{}?uploadType=media", "{}?uploadType=multipart",
+
     # --- Windows cursor scheme roles / registry values ---------------------
     "Alternate Select", "AppStarting", "Arrow", "Busy", "Crosshair", "Hand",
     "Handwriting", "Help", "Help Select", "IBeam", "Link Select",
@@ -709,6 +715,21 @@ PL = {
     "\ue109  Add Theme": "\ue109  Dodaj motyw",
     "\ue118  Download All": "\ue118  Pobierz wszystkie",
     "\ue73e  Done": "\ue73e  Gotowe",
+
+    # ---- cloud_sync.py: progress + result messages (shown in dialogs) ---- #
+    "Compressing files...": "Kompresowanie plików…",
+    "Syncing with Google Drive...": "Synchronizacja z Google Drive…",
+    "Backup complete!": "Kopia zapasowa gotowa!",
+    "Backup successfully synced to Google Drive.": "Kopia zapasowa zsynchronizowana z Google Drive.",
+    "Searching for backup...": "Wyszukiwanie kopii zapasowej…",
+    "Downloading from Google Drive...": "Pobieranie z Google Drive…",
+    "Extracting files...": "Rozpakowywanie plików…",
+    "Restore complete!": "Przywracanie zakończone!",
+    "Settings successfully restored. Please restart the app.": "Ustawienia zostały przywrócone. Uruchom aplikację ponownie.",
+    "No backup found in Google Drive.": "Nie znaleziono kopii zapasowej w Google Drive.",
+    "Login timed out or cancelled.": "Logowanie przekroczyło limit czasu lub zostało anulowane.",
+    "Permission denied: You must check the Google Drive box for sync to work.": "Odmowa dostępu: aby synchronizacja działała, zaznacz pole Google Drive.",
+    "Cloud Sync is not configured: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.": "Synchronizacja w chmurze nie jest skonfigurowana: ustaw GOOGLE_CLIENT_ID i GOOGLE_CLIENT_SECRET.",
 }
 
 # --------------------------------------------------------------------------- #
@@ -720,6 +741,30 @@ PL_PATTERNS = {
     "Syncing {}/{}": "Synchronizacja {}/{}",
     "Filtering {}... ({}/{})": "Filtrowanie {}… ({}/{})",
     "Error: {}": "Błąd: {}",
+    # cloud_sync.py failures (the tail is the provider's own error text)
+    "Upload failed: {}": "Wysyłanie nie powiodło się: {}",
+    "Download failed: {}": "Pobieranie nie powiodło się: {}",
+    "Search failed: {}": "Wyszukiwanie nie powiodło się: {}",
+    "Token exchange failed: {}": "Wymiana tokena nie powiodła się: {}",
+    "Restore failed: {}": "Przywracanie nie powiodło się: {}",
+    # github_client.py transport errors (surfaced as str(exc) in dialogs)
+    "Cannot start the local login server on port {}: {}": "Nie można uruchomić lokalnego serwera logowania na porcie {}: {}",
+    "Cannot write {}: {}": "Nie można zapisać {}: {}",
+    "Checksum mismatch for {}": "Niezgodna suma kontrolna dla {}",
+    "Download cancelled: {}": "Pobieranie anulowane: {}",
+    "Downloaded file is empty: {}": "Pobrany plik jest pusty: {}",
+    "HTTP {} for {}": "Błąd HTTP {} dla {}",
+    "HTTP {} while downloading {}": "Błąd HTTP {} podczas pobierania {}",
+    "Incomplete download from {}: {}/{} bytes": "Niekompletne pobieranie z {}: {}/{} bajtów",
+    "Invalid JSON from {}: {}": "Nieprawidłowy JSON z {}: {}",
+    "Network error for {}: {}": "Błąd sieci dla {}: {}",
+    "No internet connection or unknown host for {}": "Brak połączenia z internetem lub nieznany host: {}",
+    "Request failed for {}: {}": "Żądanie nie powiodło się dla {}: {}",
+    "Request failed: {}": "Żądanie nie powiodło się: {}",
+    "TLS error for {}: {}": "Błąd TLS dla {}: {}",
+    "TLS/certificate problem for {}: {}": "Problem z TLS/certyfikatem dla {}: {}",
+    "Timeout after {}s: {} ({})": "Przekroczony limit czasu po {} s: {} ({})",
+    "Timeout while contacting {}": "Przekroczony limit czasu podczas łączenia z {}",
     "Error for {}": "Błąd: {}",
     "Save failed: {}": "Zapis nie powiodło się: {}",
     "Save setup failed: {}": "Zapis konfiguracji nie powiódł się: {}",
@@ -1046,7 +1091,7 @@ def collect_source_keys():
         import i18n_extract
         for entry in i18n_extract.scan_all():
             msgid = entry["msgid"]
-            if msgid in EXCLUDE:
+            if msgid in EXCLUDE or normalize_pattern(msgid) in EXCLUDE:
                 continue
             if entry.get("template") or re.search(r"\{[^{}]*\}", msgid):
                 patterns.add(normalize_pattern(msgid))
