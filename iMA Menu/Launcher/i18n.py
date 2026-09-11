@@ -40,6 +40,7 @@ import json
 import os
 import re
 import sys
+import warnings
 import weakref
 
 # --------------------------------------------------------------------------- #
@@ -573,8 +574,9 @@ def bind_custom(widget, apply_fn, msgid, context=None):
         pass
     try:
         apply_fn(widget, translate(msgid, context))
-    except Exception:
-        pass
+    except Exception as exc:          # a broken callback must not stay invisible
+        warnings.warn(f"i18n.bind_custom callback failed for {msgid!r}: {exc!r}",
+                      RuntimeWarning, stacklevel=2)
     return widget
 
 
@@ -644,7 +646,9 @@ def retranslate_all():
         for apply_fn, msgid, context in callbacks:
             try:
                 apply_fn(widget, translate(msgid, context))
-            except Exception:
+            except Exception as exc:
+                warnings.warn(f"i18n retranslate failed for {msgid!r}: {exc!r}",
+                              RuntimeWarning)
                 continue
             _refresh_geometry(widget)
     for widget, callbacks in list(_refresh_callbacks.items()):

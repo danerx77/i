@@ -2,13 +2,13 @@ import os
 import re
 import uuid
 import subprocess
-from PyQt5.QtWidgets import (
+from PyQt5.QtWidgets import (QSizeGrip, 
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QFileDialog, QMessageBox, QMenu, QAction,
     QInputDialog, QButtonGroup, QDialog, QSizePolicy, QPlainTextEdit
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPoint
-from PyQt5.QtGui import QFont, QIcon, QColor
+from PyQt5.QtGui import QFont, QIcon, QColor, QGuiApplication
 
 import i18n
 from i18n import _  # noqa: F401
@@ -192,6 +192,7 @@ class PresetChip(QPushButton):
         super().__init__(text, parent)
         self.preset_value = value
         self.setFixedHeight(24)
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.setCursor(Qt.PointingHandCursor)
         self.setFont(QFont("Segoe UI Variable Text", 8))
         self.setStyleSheet("""
@@ -451,7 +452,13 @@ class ItemConfigDialog(QDialog):
 
         self.setMinimumWidth(760)
         self.setMinimumHeight(680)
-        self.resize(780, 800)
+        try:
+            avail = QGuiApplication.primaryScreen().availableGeometry()
+            width = min(780, max(760, avail.width() - 48))
+            height = min(800, max(680, avail.height() - 48))
+        except Exception:
+            width, height = 780, 800
+        self.resize(width, height)
         self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("QToolTip { background-color: #1e1e24; color: #ffffff; border: 1px solid rgba(231, 130, 132, 0.6); border-radius: 8px; padding: 6px 12px; font-family: 'Segoe UI Variable Display'; font-size: 12px; font-weight: bold; }")
@@ -460,7 +467,32 @@ class ItemConfigDialog(QDialog):
         self.pipeline_steps = []
 
         self._setup_ui()
+        self._bind_sentinel_combos()
         self._sync_live_code()
+
+    def _bind_sentinel_combos(self):
+        """Combo boxes are not auto-hooked (their items are NSS data), so the few
+        sentinel entries that ARE interface text get re-translated on switch."""
+        specs = []
+        if getattr(self, "p_box", None) is not None:
+            specs.append((self.p_box, ["(Default)", "Top", "Bottom", "Middle"]))
+        if getattr(self, "sep_box", None) is not None:
+            specs.append((self.sep_box, ["None", "Before", "After", "Both"]))
+        if getattr(self, "m_box", None) is not None:
+            specs.append((self.m_box, ["None"]))
+
+        def make_refresh(combo, values):
+            def refresh(_widget=None):
+                index = combo.currentIndex()
+                for i, value in enumerate(values):
+                    if i < combo.count():
+                        combo.setItemText(i, i18n.translate(value))
+                combo.setCurrentIndex(index)
+            return refresh
+
+        for combo, values in specs:
+            i18n.register_refresh(combo, make_refresh(combo, values))
+
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -512,6 +544,16 @@ class ItemConfigDialog(QDialog):
         dialog_vbox.setContentsMargins(0, 0, 0, 0)
         dialog_vbox.setSpacing(0)
         dialog_vbox.addWidget(scroll, 1)
+
+        # corner grip so the frameless dialog can be resized by hand
+        grip_row = QHBoxLayout()
+        grip_row.setContentsMargins(0, 0, 4, 4)
+        grip_row.addStretch()
+        grip = QSizeGrip(self)
+        grip.setFixedSize(16, 16)
+        grip.setStyleSheet("background: transparent;")
+        grip_row.addWidget(grip)
+        dialog_vbox.addLayout(grip_row)
 
         # 1. Header Row
         h_row = QHBoxLayout()
@@ -589,7 +631,8 @@ class ItemConfigDialog(QDialog):
             # Parent Menu
             m_opts = ["None"] + [m for m in self.available_menus if m and m.lower() != "none"]
             self.m_box = ModernComboBox(context_key="menu")
-            self.m_box.addItems(list(dict.fromkeys(m_opts)))
+            self.m_box.addItems([i18n.translate(m) if m == "None" else m
+                                 for m in dict.fromkeys(m_opts)])
             self.m_box.setFixedWidth(200)
             if self.parent_menu_title:
                 clean_m = self.parent_menu_title.replace("📁 ", "").strip()
@@ -757,12 +800,11 @@ class ItemConfigDialog(QDialog):
                 browse_row.addWidget(self.shortcut_browse)
                 sc_lay.addLayout(browse_row)
 
-                # Quick Templates
-                t_row = QHBoxLayout()
-                t_row.setSpacing(6)
+                # Quick Templates (label above, chips wrap instead of clipping)
                 t_lbl = QLabel("Quick Presets:")
                 t_lbl.setStyleSheet("color: #70707c; font-size: 11px;")
-                t_row.addWidget(t_lbl)
+                sc_lay.addWidget(t_lbl)
+                chip_flow = FlowLayout(None, 0, 6)
                 for t_name, t_code in [
                     ("Terminal Here", "terminal"),
                     ("PowerShell Here", "powershell"),
@@ -771,10 +813,10 @@ class ItemConfigDialog(QDialog):
                     ("Restart Explorer", "restart_explorer")
                 ]:
                     chip = PresetChip(t_name, t_code)
+                    chip.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
                     chip.clicked.connect(lambda _, c=t_code: self._apply_template(c))
-                    t_row.addWidget(chip)
-                t_row.addStretch()
-                sc_lay.addLayout(t_row)
+                    chip_flow.addWidget(chip)
+                sc_lay.addLayout(chip_flow)
                 target_box.addWidget(self.simple_container)
 
                 # 2. Advanced Command Stack Page
@@ -882,7 +924,8 @@ class ItemConfigDialog(QDialog):
             # Available menus options
             menu_choices = ["None"] + [m for m in self.available_menus if m and m.lower() != "none"]
             self.m_box = ModernComboBox(context_key="menu")
-            self.m_box.addItems(list(dict.fromkeys(menu_choices)))
+            self.m_box.addItems([i18n.translate(m) if m == "None" else m
+                                 for m in dict.fromkeys(menu_choices)])
             self.m_box.setFixedWidth(200)
 
             # Set pre-selected parent menu
@@ -897,7 +940,7 @@ class ItemConfigDialog(QDialog):
                     if clean_m in [self.m_box.itemText(i) for i in range(self.m_box.count())]:
                         self.m_box.setCurrentText(clean_m)
                     else:
-                        self.m_box.addItem(clean_m)
+                        self.m_box.addItem(i18n.translate(clean_m) if clean_m == "None" else clean_m)
                         self.m_box.setCurrentText(clean_m)
 
             self.m_box.currentIndexChanged.connect(self._sync_live_code)
@@ -906,7 +949,8 @@ class ItemConfigDialog(QDialog):
             pos_lbl = QLabel("Position:")
             pos_move_row.addWidget(pos_lbl)
             self.p_box = ModernComboBox(context_key="pos")
-            self.p_box.addItems(["(Default)", "Top", "Bottom", "Middle", "1", "2", "3", "4", "5"])
+            for _pos_val in ["(Default)", "Top", "Bottom", "Middle", "1", "2", "3", "4", "5"]:
+                self.p_box.addItem(i18n.translate(_pos_val))
             self.p_box.setFixedWidth(140)
             p_val = str(self.props.get('pos', '')).strip('\'"')
             if p_val:
@@ -920,7 +964,7 @@ class ItemConfigDialog(QDialog):
                     self.p_box.addItem(p_val)
                     self.p_box.setCurrentText(p_val)
             else:
-                self.p_box.setCurrentText("(Default)")
+                self.p_box.setCurrentIndex(max(0, self.p_box.findText(i18n.translate("(Default)"))))
             self.p_box.currentIndexChanged.connect(self._sync_live_code)
             pos_move_row.addWidget(self.p_box)
             pos_move_row.addStretch()
@@ -931,7 +975,8 @@ class ItemConfigDialog(QDialog):
 
             # Separator
             self.sep_box = ModernComboBox(context_key="sep")
-            self.sep_box.addItems(["None", "Before", "After", "Both"])
+            for _sep_val in ["None", "Before", "After", "Both"]:
+                self.sep_box.addItem(i18n.translate(_sep_val))
             self.sep_box.setFixedWidth(160)
             curr_sep = str(self.props.get('sep', '')).strip('\'"')
             if curr_sep:
@@ -940,7 +985,7 @@ class ItemConfigDialog(QDialog):
                 else:
                     self.sep_box.setCurrentText(curr_sep.title())
             else:
-                self.sep_box.setCurrentText("None")
+                self.sep_box.setCurrentIndex(max(0, self.sep_box.findText(i18n.translate("None"))))
             self.sep_box.currentIndexChanged.connect(self._sync_live_code)
 
             al.addWidget(QLabel("Separator:"), row_idx, 0, Qt.AlignLeft | Qt.AlignVCenter)
@@ -1395,14 +1440,14 @@ class ItemConfigDialog(QDialog):
                 p.pop('type', None)
 
         if getattr(self, 'p_box', None) is not None:
-            pos = self.p_box.currentText().strip()
+            pos = i18n.canonical(self.p_box.currentText()).strip()
             if pos and pos.lower() not in ("", "default", "(default)"):
                 p['pos'] = pos.lower()
             else:
                 p.pop('pos', None)
 
         if getattr(self, 'sep_box', None) is not None:
-            sep = self.sep_box.currentText().strip()
+            sep = i18n.canonical(self.sep_box.currentText()).strip()
             if sep and sep.lower() not in ("", "none", "(none)"):
                 p['sep'] = sep.lower()
             else:
@@ -1415,9 +1460,9 @@ class ItemConfigDialog(QDialog):
         if getattr(self, 'm_box', None) is None:
             return self.parent_menu_title
         txt = self.m_box.currentText().strip()
-        if txt.startswith("📁 "):
+        if txt.startswith(" "):
             txt = txt[2:].strip()
-        if not txt or txt.lower() in ("none", "none (top-level)"):
+        if not txt or txt.lower() in ("none", "none (top-level)") or txt == i18n.translate("None"):
             return None
         return txt
 

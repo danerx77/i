@@ -113,6 +113,42 @@ type_pill = mw.TypePill("desktop", "Desktop", 0xE7F4)
 check(type_pill.val == "desktop", "type pill keeps its data value")
 check(type_pill.title_text == "Pulpit", f"type pill caption translated ({type_pill.title_text!r})")
 
+section("menu_builder: ItemConfigDialog (translated + responsive)")
+from menu_builder_widget import ItemConfigDialog, PresetChip        # noqa: E402
+
+dlg = ItemConfigDialog(kind="item", is_new=True, available_menus=["Games", "Tools"])
+dlg.show()
+app.processEvents()
+
+labels = [w.text() for w in dlg.findChildren(QLabel)]
+check("Dodaj nowy element skrótu" in labels, f"dialog title translated ({labels[:2]})")
+check(dlg.shortcut_path_inp.placeholderText().startswith("Przeglądaj plik wykonywalny"),
+      f"browse placeholder translated ({dlg.shortcut_path_inp.placeholderText()[:34]}...)")
+
+chips = dlg.findChildren(PresetChip)
+check(len(chips) == 5, f"five quick-preset chips ({len(chips)})")
+clipped = [c.text() for c in chips if c.width() + 1 < c.sizeHint().width()]
+check(not clipped, f"no chip text is clipped ({clipped})")
+rows = {c.geometry().top() for c in chips}
+check(len(rows) >= 1, "chips laid out by the flow layout")
+
+check(dlg.p_box.currentText() == "(Domyślnie)", f"position sentinel translated ({dlg.p_box.currentText()})")
+check(dlg.sep_box.currentText() == i18n.translate("None"), f"separator sentinel translated ({dlg.sep_box.currentText()})")
+check("pos" not in dlg._collect_properties(), "default position writes no NSS data")
+
+dlg.p_box.setCurrentIndex(dlg.p_box.findText(i18n.translate("Top")))
+dlg.sep_box.setCurrentIndex(dlg.sep_box.findText(i18n.translate("Before")))
+props = dlg._collect_properties()
+check(props.get("pos") == "top", f"translated position reads back canonical ({props.get('pos')})")
+check(props.get("sep") == "before", f"translated separator reads back canonical ({props.get('sep')})")
+
+dlg.m_box.setCurrentIndex(dlg.m_box.findText(i18n.translate("None")))
+check(dlg.get_parent_menu() is None, "translated 'None' sentinel still means top level")
+dlg.m_box.setCurrentIndex(dlg.m_box.findText("Games"))
+check(dlg.get_parent_menu() == "Games", "user menu titles stay untouched")
+
+check(card.height() == 70 and card.isCheckable(), "visibility card geometry restored")
+
 section("live language switch")
 i18n.set_language("en")
 check(dialog.tl.text() == "Manage Imports", "dialog title back to English")
@@ -124,6 +160,10 @@ check("Unsaved Changes" in [w.text() for w in unsaved.findChildren(QLabel)],
       "unsaved dialog back to English")
 check([bar.group.button(i).text() for i in range(3)] == ["All", "Item", "Menu"],
       "filter captions back to English")
+check(dlg.shortcut_path_inp.placeholderText().startswith("Browse executable"),
+      "dialog placeholder back to English")
+check(dlg.p_box.itemText(0) == "(Default)", "position sentinel back to English")
+check(dlg.sep_box.itemText(0) == "None", "separator sentinel back to English")
 check(card.title_text == "Normal" and card.sub_text == "Always Visible",
       "painted visibility captions back to English")
 check(type_pill.title_text == "Desktop", "painted type pill back to English")
@@ -146,6 +186,8 @@ combo.addItem("Top", "top")
 check([combo.itemText(i) for i in range(combo.count())] == ["None", "Top"],
       "ModernComboBox items (NSS data) untouched")
 check(combo.currentData() is None, "combo itemData intact")
+
+dlg.close()
 
 print("\n" + "=" * 62)
 if FAILURES:

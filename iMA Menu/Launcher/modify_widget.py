@@ -596,6 +596,10 @@ class VisibilityCard(QPushButton):
         i18n.bind_custom(self, VisibilityCard._apply_language, title)
         i18n.bind_custom(self, VisibilityCard._apply_subtitle, subtitle)
 
+        self.setCheckable(True)
+        self.setFixedHeight(70)
+        self.setCursor(Qt.PointingHandCursor)
+
     @staticmethod
     def _apply_language(card, translated_title):
         card.title_text = translated_title
@@ -605,9 +609,6 @@ class VisibilityCard(QPushButton):
     def _apply_subtitle(card, translated_subtitle):
         card.sub_text = translated_subtitle
         card.update()
-        self.setCheckable(True)
-        self.setFixedHeight(70)
-        self.setCursor(Qt.PointingHandCursor)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -654,7 +655,9 @@ class VisibilityCard(QPushButton):
         painter.setFont(title_font)
         painter.setPen(QColor("#ea999c") if is_checked else QColor("#ffffff"))
         title_rect = QRectF(rect.left() + 7, rect.top() + 25, rect.width() - 14, 15)
-        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, self.title_text)
+        title = painter.fontMetrics().elidedText(self.title_text, Qt.ElideRight,
+                                                 int(title_rect.width()))
+        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, title)
 
         sub_font = QFont("Segoe UI Variable Display", 7, QFont.Medium)
         painter.setFont(sub_font)
@@ -779,13 +782,14 @@ class TypePill(QPushButton):
         self.icon_code = icon_code
         i18n.bind_custom(self, TypePill._apply_language, text)
 
+        self.setCheckable(True)
+        self.setFixedHeight(32)
+        self.setCursor(Qt.PointingHandCursor)
+
     @staticmethod
     def _apply_language(pill, translated_text):
         pill.title_text = translated_text
         pill.update()
-        self.setCheckable(True)
-        self.setFixedHeight(32)
-        self.setCursor(Qt.PointingHandCursor)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -844,7 +848,9 @@ class TypePill(QPushButton):
         painter.setFont(text_font)
         painter.setPen(QColor("#ffffff") if is_checked else QColor("#d1d5db"))
         txt_rect = QRectF(cur_x, 0, rect.right() - cur_x - 2, self.height())
-        painter.drawText(txt_rect, Qt.AlignLeft | Qt.AlignVCenter, self.title_text)
+        caption = painter.fontMetrics().elidedText(self.title_text, Qt.ElideRight,
+                                                   int(txt_rect.width()))
+        painter.drawText(txt_rect, Qt.AlignLeft | Qt.AlignVCenter, caption)
 
         painter.end()
 
@@ -1288,7 +1294,7 @@ class NSSItemDelegate(QStyledItemDelegate):
         elif v and v != 'normal': acts.append((i18n.translate("Part Hidden"), "#ca9ee6"))
         elif v: acts.append((i18n.translate(f"Vis: {v}"), "#e78284"))
         if 'menu' in props and props.get('menu') is not None: acts.append((i18n.translate("Moved"), "#ef9f76"))
-        if props.get('pos'): acts.append((f"Pos: {props['pos']}", "#a6d189"))
+        if props.get('pos'): acts.append((i18n.trf("Pos: {}", props['pos']), "#a6d189"))
         if props.get('sep'): acts.append(("Separator", "#e5c890"))
         
         painter.setFont(QFont('Segoe UI Variable Display', 8, QFont.Bold))
@@ -1312,7 +1318,7 @@ class NSSItemDelegate(QStyledItemDelegate):
         # Source / File
         fp = data.get('file', 'modify.nss'); src = os.path.basename(fp)
         painter.setPen(QColor("#A0A0A0")); painter.setFont(QFont("Inter", 9))
-        painter.drawText(rect.x() + 85, rect.y() + 82, f"Source: {src}")
+        painter.drawText(rect.x() + 85, rect.y() + 82, i18n.trf("Source: {}", src))
         
         # Buttons Area (Right)
         if is_hover:
@@ -2019,7 +2025,7 @@ class ImportedItemCard(QFrame):
         title = data.get('title') or i18n.translate('No Title'); typ = self.data.get('type', 'item').title()
         self.title_label.setText(f"{typ}: <span style='color: #e78284;'>{title}</span>")
         fname = os.path.basename(self.data.get('file', 'unknown'))
-        self.desc_label.setText(f"Source: <span style='color: #ea999c;'>{fname}</span>" + (f" \u2022 Cmd: <span style='color: #b0b0b0;'>{data['cmd'][:50]}...</span>" if 'cmd' in data else ""))
+        self.desc_label.setText(i18n.trf("Source: <span style='color: #ea999c;'>{}</span>", fname) + (i18n.trf(" \u2022 Cmd: <span style='color: #b0b0b0;'>{}...</span>", data['cmd'][:50]) if 'cmd' in data else ""))
         
         while self.c_lay.count():
             it = self.c_lay.takeAt(0); (it.widget().deleteLater() if it.widget() else None)
@@ -2237,8 +2243,8 @@ class ModificationRuleCard(QFrame):
         
         # Build a friendly Target Title
         target = "Global Rule"
-        if data.get('where.id'): target = f"ID: <span style='color: #e78284;'>{data['where.id'].strip(chr(39)+chr(34))}</span>"
-        elif data.get('find'): target = f"Modify: <span style='color: #e78284;'>{data['find'].strip(chr(39)+chr(34))}</span>"
+        if data.get('where.id'): target = i18n.trf("ID: <span style='color: #e78284;'>{}</span>", data['where.id'].strip(chr(39)+chr(34)))
+        elif data.get('find'): target = i18n.trf("Modify: <span style='color: #e78284;'>{}</span>", data['find'].strip(chr(39)+chr(34)))
         elif data.get('where'): target = f"Rule: <span style='color: #e78284;'>{data['where'].strip(chr(39)+chr(34))}</span>"
         elif data.get('type'): target = f"All <span style='color: #ea999c;'>{data['type'].title()}s</span>"
         if data.get('in'): target += f" <span style='color: #333333;'>in</span> <span style='color: #b0b0b0;'>{data['in'].strip(chr(39)+chr(34))}</span>"
@@ -2250,7 +2256,7 @@ class ModificationRuleCard(QFrame):
         
         v = data.get('vis', '').lower()
         if 'remove' in v or 'hidden' in v: acts.append("<span style='color: #e78284;'>Hidden</span>")
-        elif v and v != 'normal': acts.append(f"Vis: <span style='color: #e78284;'>{v}</span>")
+        elif v and v != 'normal': acts.append(i18n.trf("Vis: <span style='color: #e78284;'>{}</span>", v))
         
         if 'menu' in data and data.get('menu') is not None:
             m = str(data.get('menu', '')).strip('\'"')
@@ -2260,9 +2266,9 @@ class ModificationRuleCard(QFrame):
                 acts.append("Move to <span style='color: #e78284;'>Options</span>")
             else:
                 m_name = m.split('.')[-1].title() if '.' in m else m.title()
-                acts.append(f"Move to <span style='color: #e78284;'>{m_name}</span>")
+                acts.append(i18n.trf("Move to <span style='color: #e78284;'>{}</span>", m_name))
             
-        if data.get('pos'): acts.append(f"Pos: <span style='color: #e78284;'>{data['pos']}</span>")
+        if data.get('pos'): acts.append(i18n.trf("Pos: <span style='color: #e78284;'>{}</span>", data['pos']))
         if any(k in data for k in ('icon', 'image')): acts.append("<span style='color: #e78284;'>New Icon</span>")
         if data.get('sep'): acts.append("<span style='color: #333333;'>Separator</span>")
         
