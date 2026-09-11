@@ -23,6 +23,8 @@ from PyQt5.QtCore import (Qt, pyqtSignal, QSize, QEvent, QPoint, QRect, QRectF, 
 
 from github_client import github_api_get, cdn_get, get_latest_tree_sha, RequestException
 from plugin_registry import atomic_json_write, safe_json_read, git_blob_sha
+import i18n
+from i18n import _  # noqa: F401
 from utils import resource_path, safe_file_write, terminate_plugin_processes, CapsuleActionButton
 
 PROJECT_ROOT = None
@@ -955,7 +957,7 @@ class DetailsPopup(QWidget):
         icon_label.setPixmap(icon_pixmap)
         title_layout.addWidget(icon_label)
 
-        title_label = QLabel(self.plugin_data['name'])
+        title_label = QLabel(); i18n.raw(title_label, self.plugin_data['name'])
         title_label.setFont(QFont('Segoe UI Variable Display', 18, QFont.Bold))
         title_layout.addWidget(title_label)
         title_layout.addStretch()
@@ -1018,7 +1020,9 @@ class DetailsPopup(QWidget):
                 dlg.save_all()
 
     def _setup_body(self):
-        description_label = QLabel(self.plugin_data.get('description', 'No description available.'))
+        description_label = QLabel()
+        i18n.raw(description_label,
+                 self.plugin_data.get('description') or i18n.translate('No description available.'))
         description_label.setWordWrap(True)
         description_label.setStyleSheet("color: #a6adc8; font-size: 13px; font-weight: 500; background: transparent; border: none; margin-top: 2px; margin-bottom: 6px;")
         self.layout.addWidget(description_label)

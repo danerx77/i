@@ -12,6 +12,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QBrush, QPen, QPixmap, QPainterPath, QLinearGradient
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPoint, QEvent, QTimer, QObject, QRect, QRectF, QPropertyAnimation, pyqtProperty
 
+import i18n
+from i18n import _  # noqa: F401
 from utils import resource_path, get_font_icon, get_mdl2_icon, safe_file_write, get_shell_dll_version, get_default_image_dir, save_last_image_dir, ModernComboBox, PillLineEdit
 
 from PyQt5.QtWidgets import QMessageBox
@@ -1105,8 +1107,10 @@ class ThemeEditorWidget(QWidget):
         layout.setSpacing(16)
 
         if title:
-            title_lbl = QLabel(title.upper())
+            title_lbl = QLabel("")
             title_lbl.setStyleSheet("font-size: 12px; font-weight: 700; color: #e78284; border: none;")
+            # upper-cased captions need a transform so live retranslation keeps the style
+            i18n.bind_transform(title_lbl, title, str.upper)
             layout.addWidget(title_lbl)
 
         settings_container = QWidget()

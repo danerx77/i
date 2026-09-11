@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# i18n tooling artifacts (generated)
+tools/worklist.json
+tools/extracted.json
