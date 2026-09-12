@@ -154,11 +154,16 @@ check(mw.get_friendly_id_name("id.add_to_favorites") == "Dodaj do ulubionych",
       f"id picker names translated ({mw.get_friendly_id_name('id.add_to_favorites')})")
 check(mw.get_friendly_id_name("id.show_hidden_files") == "Pokaż ukryte pliki",
       "second id name translated")
-check(mw.title_with_hint("Recycle Bin") == "Recycle Bin (Kosz)",
-      f"known title gets a bracket hint ({mw.title_with_hint('Recycle Bin')})")
-check(mw.title_with_hint("repair") == "repair", "unknown user title stays untouched")
+check(mw.display_title("Uninstall") == "Odinstaluj",
+      f"known title shows in Polish ({mw.display_title('Uninstall')})")
+check(mw.display_title("repair") == "Napraw", "curated mod default translated")
+check(mw.display_title("display settings") == "Ustawienia wyświetlania",
+      "multi-word title translated")
+check(mw.display_title("recycle bin") == "Kosz", "catalogue lookup is case-insensitive")
+check(mw.display_title("my own weird name") == "my own weird name",
+      "unknown user title passes through untouched")
 mw.set_pl_title_hints(False)
-check(mw.title_with_hint("Recycle Bin") == "Recycle Bin", "hints can be switched off")
+check(mw.display_title("Uninstall") == "Uninstall", "title translation can be switched off")
 mw.set_pl_title_hints(True)
 
 section("live language switch")
@@ -180,7 +185,7 @@ check(card.title_text == "Normal" and card.sub_text == "Always Visible",
       "painted visibility captions back to English")
 check(mw.get_friendly_id_name("id.add_to_favorites") == "Add To Favorites",
       "id picker names back to English")
-check(mw.title_with_hint("Recycle Bin") == "Recycle Bin", "no bracket hints in English")
+check(mw.display_title("Uninstall") == "Uninstall", "titles stay English in English")
 check(type_pill.title_text == "Desktop", "painted type pill back to English")
 bar.group.button(2).click()
 check(emitted[-1] == "Menu", "filter signal still canonical after the switch")

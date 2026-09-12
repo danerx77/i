@@ -21,7 +21,7 @@ from nss_parser import (
     parse_nss_args, NSSLexer
 )
 from modify_widget import (
-    AnimatedGlowPreviewLabel, VisibilityWidget, TypeWidget, GlyphBrowserDialog,
+    display_title, AnimatedGlowPreviewLabel, VisibilityWidget, TypeWidget, GlyphBrowserDialog,
     LocalIconTintDialog, ColorCircleButton, FilterBar, _extract_all_colors,
     _extract_glyph_codes, _get_theme_glyph_colors, ModifyRuleEditorDialog
 )
@@ -1790,7 +1790,11 @@ class BuilderItemCard(QFrame):
         # Title
         raw_title = props.get('title', '')
         clean_title = str(raw_title).strip('\'"') or i18n.translate("(Unnamed)")
-        i18n.set_text_raw(self.title_lbl, clean_title)
+        self._raw_title = str(raw_title).strip('\'"')
+        i18n.set_text_raw(self.title_lbl, display_title(clean_title))
+        i18n.register_refresh(
+            self.title_lbl,
+            lambda w: i18n.set_text_raw(w, display_title(self._raw_title) or i18n.translate("(Unnamed)")))
 
         # Icon / Image rendering
         raw_icon = str(props.get('image') or props.get('icon') or '').strip('\'"')

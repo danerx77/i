@@ -3484,8 +3484,8 @@ class PluginManager(QWidget):
         self.auto_check_sw = self._create_setting_row(layout, "Auto Check Updates", "Show notification when updates are available", "auto_check_updates")
         self._create_language_row(layout)
         hints_sw = self._create_setting_row(
-            layout, "Polish hints for English item titles",
-            "Show the Polish translation in brackets next to untranslated item titles",
+            layout, "Polish item title names",
+            "Show known item titles in Polish on the cards - the values stored in shell.nss stay English",
             "pl_title_hints")
         try:
             import modify_widget as _mw

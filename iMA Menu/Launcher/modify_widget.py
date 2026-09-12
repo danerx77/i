@@ -36,9 +36,24 @@ def set_project_root(root):
     import nss_parser
     nss_parser.set_project_root(root)
 
-# When True (default), item titles that have a known Polish translation but are
-# stored in English in shell.nss get a "(polska nazwa)" hint on the cards.
+# When True (default), item titles stored in English in shell.nss are shown
+# with their Polish name on the cards.  Display only: every value written back
+# to shell.nss (edit dialogs, code preview, filters) stays exactly as stored.
 PL_TITLE_HINTS = True
+
+# curated display names for titles the catalogue cannot know (lower-cased,
+# user-authored defaults of this mod); everything else falls back to a
+# case-insensitive catalogue lookup
+TITLE_DISPLAY_PL = {
+    "display settings": "Ustawienia wyświetlania",
+    "display": "Wyświetlanie",
+    "new": "Nowy",
+    "compressed": "Skompresowane",
+    "repair": "Napraw",
+    "explore background": "Przeglądaj tło",
+    "next background": "Następne tło",
+    "folder": "Folder",
+}
 
 
 def set_pl_title_hints(enabled):
@@ -46,15 +61,12 @@ def set_pl_title_hints(enabled):
     PL_TITLE_HINTS = bool(enabled)
 
 
-def title_with_hint(title):
-    """``Uninstall`` -> ``Uninstall (Odinstaluj)`` when the catalogue knows it."""
-    title = (title or "").strip(chr(39) + chr(34))
-    if not PL_TITLE_HINTS or not title:
-        return title
-    hint = i18n.translate(title)
-    if hint and hint != title:
-        return f"{title} ({hint})"
-    return title
+def display_title(title):
+    """Polish display name of an item title; unknown titles pass through."""
+    raw = (title or "").strip(chr(39) + chr(34))
+    if not raw or not PL_TITLE_HINTS or i18n.get_language() == "en":
+        return raw
+    return TITLE_DISPLAY_PL.get(raw.casefold()) or i18n.translate_ci(raw)
 
 
 DEFAULT_IDS = [
@@ -1279,7 +1291,7 @@ class NSSItemDelegate(QStyledItemDelegate):
                 draw_part(wid, "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
-                    draw_part(title_with_hint(props['title']), "#e78284", f_bold)
+                    draw_part(display_title(props['title']), "#e78284", f_bold)
             elif props.get('find'):
                 draw_part(i18n.translate("Modify: "), "#e78284", f_bold)
                 draw_part(props['find'].strip(chr(39)+chr(34)), "#ffffff", f_bold)
@@ -2037,17 +2049,19 @@ class ImportedItemCard(QFrame):
             b.setCursor(Qt.PointingHandCursor); self.bl.addWidget(b)
         self.main_layout.addWidget(self.bl_w)
         self.update_ui()
+        # the card texts are built (not hooked), so rebuild them on switch
+        i18n.register_refresh(self, lambda card: card.update_ui())
 
     def update_ui(self):
         data = self.data.get('props', {})
         val = data.get('image') or data.get('icon') or ''
         cmd_val = data.get('cmd') or data.get('path') or ''
         _update_label_asset(self.icon_label, val, self.data.get('file'), cmd=cmd_val)
-        title = title_with_hint(data.get('title')) if data.get('title') else i18n.translate('No Title')
-        typ = self.data.get('type', 'item').title()
-        self.title_label.setText(f"{typ}: <span style='color: #e78284;'>{title}</span>")
+        title = display_title(data.get('title')) if data.get('title') else i18n.translate('No Title')
+        typ = i18n.translate(self.data.get('type', 'item').title())
+        i18n.set_text_raw(self.title_label, f"{typ}: <span style='color: #e78284;'>{title}</span>")
         fname = os.path.basename(self.data.get('file', 'unknown'))
-        self.desc_label.setText(i18n.trf("Source: <span style='color: #ea999c;'>{}</span>", fname) + (i18n.trf(" \u2022 Cmd: <span style='color: #b0b0b0;'>{}...</span>", data['cmd'][:50]) if 'cmd' in data else ""))
+        i18n.set_text_raw(self.desc_label, i18n.trf("Source: <span style='color: #ea999c;'>{}</span>", fname) + (i18n.trf(" \u2022 Cmd: <span style='color: #b0b0b0;'>{}...</span>", data['cmd'][:50]) if 'cmd' in data else ""))
         
         while self.c_lay.count():
             it = self.c_lay.takeAt(0); (it.widget().deleteLater() if it.widget() else None)
@@ -4287,6 +4301,7 @@ class ImportsWidget(QWidget):
         self.view.setModel(self.model)
         self.delegate = NSSItemDelegate(self.view)
         self.view.setItemDelegate(self.delegate)
+        i18n.register_refresh(self.view, lambda w: w.viewport().update())
         crl.addWidget(self.view)
         
         self.status_label = QLabel("")

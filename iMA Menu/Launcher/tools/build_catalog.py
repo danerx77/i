@@ -27,6 +27,9 @@ EXCLUDE = {
     # --- backend modules (github_client.py / cloud_sync.py): URLs, HTTP headers
     #     and developer-facing assertions must never be translated -----------
     "Content-type", "text/html; charset=utf-8", "download_file() needs a URL",
+    # superseded wording of the settings row (bracket hints -> display names)
+    "Polish hints for English item titles",
+    "Show the Polish translation in brackets next to untranslated item titles",
     "{}/rate_limit", "{}/repos/{}/branches/{}", "{}/repos/{}/git/commits/{}",
     "{}/{}?alt=media", "{}/{}?uploadType=media", "{}?uploadType=multipart",
 
@@ -980,10 +983,10 @@ PL_ID_DISPLAY = {
 }
 
 # settings row for the bracket hints
-PL_ID_DISPLAY.setdefault("Polish hints for English item titles",
-                         "Polskie podpowiedzi przy angielskich tytułach pozycji")
-PL_ID_DISPLAY.setdefault("Show the Polish translation in brackets next to untranslated item titles",
-                         "Pokazuj polskie tłumaczenie w nawiasie obok nieprzetłumaczonych tytułów pozycji")
+PL_ID_DISPLAY.setdefault("Polish item title names",
+                         "Polskie nazwy tytułów pozycji")
+PL_ID_DISPLAY.setdefault("Show known item titles in Polish on the cards - the values stored in shell.nss stay English",
+                         "Pokazuj znane tytuły pozycji po polsku na kartach - wartości w shell.nss zostają angielskie")
 
 for _key, _value in PL_ID_DISPLAY.items():
     PL.setdefault(_key, _value)

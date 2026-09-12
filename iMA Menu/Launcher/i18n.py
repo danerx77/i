@@ -434,6 +434,26 @@ def t(msgid, context=None, **variables):
     return translate(msgid, context, **variables)
 
 
+_ci_cache = {"lang": None, "map": {}}
+
+
+def translate_ci(text, context=None):
+    """Case-insensitive exact lookup (``repair`` finds ``Repair``).
+
+    Used for display-only translation of user data such as item titles, where
+    the stored casing is arbitrary.
+    """
+    if not text:
+        return text
+    lang = _state["language"]
+    if _ci_cache["lang"] != lang:
+        messages = _state["catalog"].get(lang, {}).get("messages", {})
+        _ci_cache["lang"] = lang
+        _ci_cache["map"] = {k.casefold(): v for k, v in messages.items()}
+    hit = _ci_cache["map"].get(text.casefold())
+    return hit if hit is not None else text
+
+
 def canonical(text):
     """Map a (possibly translated) UI string back to its English source text.
 
