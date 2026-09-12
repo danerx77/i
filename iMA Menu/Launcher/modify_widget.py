@@ -14,6 +14,8 @@ from PyQt5.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QIcon, QPix
 from PyQt5.QtCore import Qt, pyqtSignal, QSize, QEvent, QPoint, QPointF, QRect, QRectF, QTimer, QObject, QAbstractListModel, QModelIndex, QFileInfo
 try: from PyQt5 import QtSvg
 except ImportError: QtSvg = None
+import i18n
+from i18n import _  # noqa: F401
 from utils import resource_path, UnsavedChangesDialog, safe_file_write, get_font_icon, get_mdl2_icon, NILESOFT_FONT_FAMILY, _init_nilesoft_font, FlowLayout, normalize_path, ModernComboBox, render_nss_asset_pixmap, PillTabButton, PillPushButton, PillLineEdit
 from theme_editor_widget import MinimalColorPickerDialog
 from nss_parser import (
@@ -33,6 +35,27 @@ def set_project_root(root):
     PROJECT_ROOT = root
     import nss_parser
     nss_parser.set_project_root(root)
+
+# When True (default), item titles that have a known Polish translation but are
+# stored in English in shell.nss get a "(polska nazwa)" hint on the cards.
+PL_TITLE_HINTS = True
+
+
+def set_pl_title_hints(enabled):
+    global PL_TITLE_HINTS
+    PL_TITLE_HINTS = bool(enabled)
+
+
+def title_with_hint(title):
+    """``Uninstall`` -> ``Uninstall (Odinstaluj)`` when the catalogue knows it."""
+    title = (title or "").strip(chr(39) + chr(34))
+    if not PL_TITLE_HINTS or not title:
+        return title
+    hint = i18n.translate(title)
+    if hint and hint != title:
+        return f"{title} ({hint})"
+    return title
+
 
 DEFAULT_IDS = [
     "id.account", "id.add_a_network_location", "id.add_to_favorites", "id.add_to_playlist",
@@ -588,12 +611,25 @@ class VisibilityCard(QPushButton):
     def __init__(self, key, title, subtitle, icon_code, parent=None):
         super().__init__(parent)
         self.key = key
-        self.title_text = title
-        self.sub_text = subtitle
+        self.title_text = i18n.translate(title)
+        self.sub_text = i18n.translate(subtitle)
         self.icon_code = icon_code
+        i18n.bind_custom(self, VisibilityCard._apply_language, title)
+        i18n.bind_custom(self, VisibilityCard._apply_subtitle, subtitle)
+
         self.setCheckable(True)
         self.setFixedHeight(70)
         self.setCursor(Qt.PointingHandCursor)
+
+    @staticmethod
+    def _apply_language(card, translated_title):
+        card.title_text = translated_title
+        card.update()
+
+    @staticmethod
+    def _apply_subtitle(card, translated_subtitle):
+        card.sub_text = translated_subtitle
+        card.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -640,7 +676,9 @@ class VisibilityCard(QPushButton):
         painter.setFont(title_font)
         painter.setPen(QColor("#ea999c") if is_checked else QColor("#ffffff"))
         title_rect = QRectF(rect.left() + 7, rect.top() + 25, rect.width() - 14, 15)
-        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, self.title_text)
+        title = painter.fontMetrics().elidedText(self.title_text, Qt.ElideRight,
+                                                 int(title_rect.width()))
+        painter.drawText(title_rect, Qt.AlignLeft | Qt.AlignVCenter, title)
 
         sub_font = QFont("Segoe UI Variable Display", 7, QFont.Medium)
         painter.setFont(sub_font)
@@ -761,11 +799,18 @@ class TypePill(QPushButton):
     def __init__(self, val, text, icon_code=None, parent=None):
         super().__init__(parent)
         self.val = val
-        self.title_text = text
+        self.title_text = i18n.translate(text)
         self.icon_code = icon_code
+        i18n.bind_custom(self, TypePill._apply_language, text)
+
         self.setCheckable(True)
         self.setFixedHeight(32)
         self.setCursor(Qt.PointingHandCursor)
+
+    @staticmethod
+    def _apply_language(pill, translated_text):
+        pill.title_text = translated_text
+        pill.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -824,7 +869,9 @@ class TypePill(QPushButton):
         painter.setFont(text_font)
         painter.setPen(QColor("#ffffff") if is_checked else QColor("#d1d5db"))
         txt_rect = QRectF(cur_x, 0, rect.right() - cur_x - 2, self.height())
-        painter.drawText(txt_rect, Qt.AlignLeft | Qt.AlignVCenter, self.title_text)
+        caption = painter.fontMetrics().elidedText(self.title_text, Qt.ElideRight,
+                                                   int(txt_rect.width()))
+        painter.drawText(txt_rect, Qt.AlignLeft | Qt.AlignVCenter, caption)
 
         painter.end()
 
@@ -1228,24 +1275,24 @@ class NSSItemDelegate(QStyledItemDelegate):
         if data.get('type') == 'modify':
             wid = str(props.get('where.id', '')).strip('\'" ')
             if wid:
-                draw_part("Modify ID: ", "#e78284", f_bold)
+                draw_part(i18n.translate("Modify ID: "), "#e78284", f_bold)
                 draw_part(wid, "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
-                    draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
+                    draw_part(title_with_hint(props['title']), "#e78284", f_bold)
             elif props.get('find'):
-                draw_part("Modify: ", "#e78284", f_bold)
+                draw_part(i18n.translate("Modify: "), "#e78284", f_bold)
                 draw_part(props['find'].strip(chr(39)+chr(34)), "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
             elif props.get('type'):
-                draw_part(f"All {props['type'].title()}s", "#e78284", f_bold)
+                draw_part(i18n.translate(f"All {props['type'].title()}s"), "#e78284", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
             else:
-                draw_part("Global Rule", "#e78284", f_bold)
+                draw_part(i18n.translate("Global Rule"), "#e78284", f_bold)
         else:
             # item or menu - show title
             raw_title = props.get('title') or props.get('find') or props.get('where') or props.get('cmd') or 'Unnamed'
@@ -1256,19 +1303,19 @@ class NSSItemDelegate(QStyledItemDelegate):
             draw_part(t_str, "#ffffff", f_bold)
             
         if props.get('in'):
-            draw_part(" in ", "#A0A0A0", f_small)
+            draw_part(" " + i18n.translate("in") + " ", "#A0A0A0", f_small)
             draw_part(props['in'].strip(chr(39)+chr(34)), "#ea999c", f_bold)
         
         # Badges / Summary
         bx = rect.x() + 85; by = rect.y() + 48; acts = []
-        if props.get('title'): acts.append(("Renamed", "#838ba7"))
-        if props.get('icon') or props.get('image'): acts.append(("Icons", "#8caaee"))
+        if props.get('title'): acts.append((i18n.translate("Renamed"), "#838ba7"))
+        if props.get('icon') or props.get('image'): acts.append((i18n.translate("Icons"), "#8caaee"))
         v = props.get('vis', '').lower()
-        if v in ('vis.remove', 'vis.hidden', 'remove', 'hidden'): acts.append(("Hidden", "#e78284"))
-        elif v and v != 'normal': acts.append(("Part Hidden", "#ca9ee6"))
-        elif v: acts.append((f"Vis: {v}", "#e78284"))
-        if 'menu' in props and props.get('menu') is not None: acts.append(("Moved", "#ef9f76"))
-        if props.get('pos'): acts.append((f"Pos: {props['pos']}", "#a6d189"))
+        if v in ('vis.remove', 'vis.hidden', 'remove', 'hidden'): acts.append((i18n.translate("Hidden"), "#e78284"))
+        elif v and v != 'normal': acts.append((i18n.translate("Part Hidden"), "#ca9ee6"))
+        elif v: acts.append((i18n.translate(f"Vis: {v}"), "#e78284"))
+        if 'menu' in props and props.get('menu') is not None: acts.append((i18n.translate("Moved"), "#ef9f76"))
+        if props.get('pos'): acts.append((i18n.trf("Pos: {}", props['pos']), "#a6d189"))
         if props.get('sep'): acts.append(("Separator", "#e5c890"))
         
         painter.setFont(QFont('Segoe UI Variable Display', 8, QFont.Bold))
@@ -1292,7 +1339,7 @@ class NSSItemDelegate(QStyledItemDelegate):
         # Source / File
         fp = data.get('file', 'modify.nss'); src = os.path.basename(fp)
         painter.setPen(QColor("#A0A0A0")); painter.setFont(QFont("Inter", 9))
-        painter.drawText(rect.x() + 85, rect.y() + 82, f"Source: {src}")
+        painter.drawText(rect.x() + 85, rect.y() + 82, i18n.trf("Source: {}", src))
         
         # Buttons Area (Right)
         if is_hover:
@@ -1502,7 +1549,8 @@ class FilterBar(QWidget):
         for i, (tag, color) in enumerate(tags_with_colors):
             btn = FilterTag(tag, color); self.group.addButton(btn, i); self.layout.addWidget(btn)
             if i == 0: btn.setChecked(True)
-        self.group.buttonClicked.connect(lambda b: self.filter_changed.emit(b.text()))
+        # captions are translated, the emitted filter value must stay canonical
+        self.group.buttonClicked.connect(lambda b: self.filter_changed.emit(i18n.canonical(b.text())))
 
 def _resolve_icon_filepath(raw_path, nss_file=None, root_dir=None):
     if not raw_path:
@@ -1995,10 +2043,11 @@ class ImportedItemCard(QFrame):
         val = data.get('image') or data.get('icon') or ''
         cmd_val = data.get('cmd') or data.get('path') or ''
         _update_label_asset(self.icon_label, val, self.data.get('file'), cmd=cmd_val)
-        title = data.get('title', 'No Title'); typ = self.data.get('type', 'item').title()
+        title = title_with_hint(data.get('title')) if data.get('title') else i18n.translate('No Title')
+        typ = self.data.get('type', 'item').title()
         self.title_label.setText(f"{typ}: <span style='color: #e78284;'>{title}</span>")
         fname = os.path.basename(self.data.get('file', 'unknown'))
-        self.desc_label.setText(f"Source: <span style='color: #ea999c;'>{fname}</span>" + (f" \u2022 Cmd: <span style='color: #b0b0b0;'>{data['cmd'][:50]}...</span>" if 'cmd' in data else ""))
+        self.desc_label.setText(i18n.trf("Source: <span style='color: #ea999c;'>{}</span>", fname) + (i18n.trf(" \u2022 Cmd: <span style='color: #b0b0b0;'>{}...</span>", data['cmd'][:50]) if 'cmd' in data else ""))
         
         while self.c_lay.count():
             it = self.c_lay.takeAt(0); (it.widget().deleteLater() if it.widget() else None)
@@ -2078,7 +2127,7 @@ class IDEntryWidget(QFrame):
     def __init__(self, id_text, formatted_name, initial_menu=None, initial_vis=None, initial_hidden=False, custom_props=None, parent=None):
         super().__init__(parent)
         self.id_text = id_text
-        self.default_name = id_text.replace("id.", "").replace("_", " ").title()
+        self.default_name = get_friendly_id_name(id_text)
         self.formatted_name = formatted_name or self.default_name
         self.menu = initial_menu
         self.vis = initial_vis
@@ -2216,8 +2265,8 @@ class ModificationRuleCard(QFrame):
         
         # Build a friendly Target Title
         target = "Global Rule"
-        if data.get('where.id'): target = f"ID: <span style='color: #e78284;'>{data['where.id'].strip(chr(39)+chr(34))}</span>"
-        elif data.get('find'): target = f"Modify: <span style='color: #e78284;'>{data['find'].strip(chr(39)+chr(34))}</span>"
+        if data.get('where.id'): target = i18n.trf("ID: <span style='color: #e78284;'>{}</span>", data['where.id'].strip(chr(39)+chr(34)))
+        elif data.get('find'): target = i18n.trf("Modify: <span style='color: #e78284;'>{}</span>", data['find'].strip(chr(39)+chr(34)))
         elif data.get('where'): target = f"Rule: <span style='color: #e78284;'>{data['where'].strip(chr(39)+chr(34))}</span>"
         elif data.get('type'): target = f"All <span style='color: #ea999c;'>{data['type'].title()}s</span>"
         if data.get('in'): target += f" <span style='color: #333333;'>in</span> <span style='color: #b0b0b0;'>{data['in'].strip(chr(39)+chr(34))}</span>"
@@ -2229,7 +2278,7 @@ class ModificationRuleCard(QFrame):
         
         v = data.get('vis', '').lower()
         if 'remove' in v or 'hidden' in v: acts.append("<span style='color: #e78284;'>Hidden</span>")
-        elif v and v != 'normal': acts.append(f"Vis: <span style='color: #e78284;'>{v}</span>")
+        elif v and v != 'normal': acts.append(i18n.trf("Vis: <span style='color: #e78284;'>{}</span>", v))
         
         if 'menu' in data and data.get('menu') is not None:
             m = str(data.get('menu', '')).strip('\'"')
@@ -2239,9 +2288,9 @@ class ModificationRuleCard(QFrame):
                 acts.append("Move to <span style='color: #e78284;'>Options</span>")
             else:
                 m_name = m.split('.')[-1].title() if '.' in m else m.title()
-                acts.append(f"Move to <span style='color: #e78284;'>{m_name}</span>")
+                acts.append(i18n.trf("Move to <span style='color: #e78284;'>{}</span>", m_name))
             
-        if data.get('pos'): acts.append(f"Pos: <span style='color: #e78284;'>{data['pos']}</span>")
+        if data.get('pos'): acts.append(i18n.trf("Pos: <span style='color: #e78284;'>{}</span>", data['pos']))
         if any(k in data for k in ('icon', 'image')): acts.append("<span style='color: #e78284;'>New Icon</span>")
         if data.get('sep'): acts.append("<span style='color: #333333;'>Separator</span>")
         
@@ -2544,7 +2593,8 @@ class ManualSyncConflictDialog(QDialog):
             cb = QCheckBox(); cb.setStyleSheet("QCheckBox::indicator { width: 18px; height: 18px; border-radius: 4px; border: 2px solid #333333; background: transparent; } QCheckBox::indicator:checked { background: #e78284; border: 2px solid #e78284; }"); cb.setChecked(False); cb.setProperty("item_idx", idx); self.checkboxes.append(cb); card_lay.addWidget(cb)
             val = item['props'].get('image') or item['props'].get('icon') or ''; codes = _extract_glyph_codes(val); colors = _extract_all_colors(val)
             prev = GlyphPreviewLabel(codes, size=24, font_family=NILESOFT_FONT_FAMILY, colors=colors); prev.setFixedSize(36, 36); card_lay.addWidget(prev)
-            title = QLabel(item['props'].get('title', 'Unknown Item')); title.setStyleSheet("color: white; font-weight: bold; font-size: 14px;"); card_lay.addWidget(title)
+            title = QLabel()
+            i18n.raw(title, item['props'].get('title') or i18n.translate('Unknown Item')); title.setStyleSheet("color: white; font-weight: bold; font-size: 14px;"); card_lay.addWidget(title)
             card_lay.addStretch(); self.scroll_layout.addWidget(card)
         scroll.setWidget(self.scroll_widget); cl.addWidget(scroll)
         btns = QHBoxLayout(); btns.addStretch()
@@ -4315,12 +4365,12 @@ class ImportsWidget(QWidget):
 
     def filter_items(self):
         ab = self.action_tags.group.checkedButton()
-        action_tag = ab.text() if ab else "All"
+        action_tag = i18n.canonical(ab.text()) if ab else "All"
         if self.curr_filter == "rules":
             self.model.filter(self.search.text(), action_tag=action_tag)
         else:
             cb = self.type_tags.group.checkedButton()
-            type_tag = cb.text() if cb else "All"
+            type_tag = i18n.canonical(cb.text()) if cb else "All"
             self.model.filter(self.search.text(), self.curr_filter, type_tag=type_tag, action_tag=action_tag)
 
     def set_file_filter(self, fp):
@@ -4705,7 +4755,9 @@ def get_friendly_id_name(id_str):
         "vhd": "VHD", "dvd": "DVD", "usb": "USB", "cmd": "CMD", "ps": "PowerShell"
     }
     words = clean.split()
-    return " ".join(replacements.get(w.lower(), w.capitalize()) for w in words)
+    friendly = " ".join(replacements.get(w.lower(), w.capitalize()) for w in words)
+    # display only: the id stored in shell.nss is always the raw English one
+    return i18n.translate(friendly)
 
 
 class MatchModeButton(QPushButton):

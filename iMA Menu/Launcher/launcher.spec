@@ -37,17 +37,27 @@ excluded_binaries = {
     'libssl-3.dll',
 }
 
-datas = [
+_wanted_datas = [
     ('style.css', '.'),
     ('ima_updater.exe', '.'),
     ('shell.dll', '.'),
-    ('shell.exe', '.'),
+    ('shell.exe', '.'),            # lives in the project root; see build_launcher.py
     ('icons', 'icons'),
-    ('fonts', 'fonts'),
+    ('fonts', 'fonts'),            # glyphs.json + nilesoft.ttf
     ('cursors.json', '.'),
     ('cursors_previews.json', '.'),
-    ('cache/plugins.json', 'cache'),
+    ('cache/plugins.json', 'cache'),  # runtime cache, absent in a fresh checkout
+    ('locales', 'locales'),        # i18n catalogues (en.json / pl.json)
 ]
+
+# Optional assets must not break the build: skip whatever this checkout does not
+# have and say so, instead of letting PyInstaller abort.
+datas = []
+for _src, _dst in _wanted_datas:
+    if os.path.exists(_src):
+        datas.append((_src, _dst))
+    else:
+        print(f'[launcher.spec] WARNING: asset not found, skipped: {_src}')
 
 a = Analysis(
     ['launcher.pyw'],
@@ -55,7 +65,7 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=[
-        'encodings', 'glyphs_data', 'modify_widget',
+        'encodings', 'i18n', 'glyphs_data', 'modify_widget',
         'theme_editor_widget', 'theme_switcher_widget', 'cursor_widget',
         'github_client', 'utils', 'cloud_sync', 'nss_error_monitor',
         'plugin_registry', 'nss_parser', 'plugin_workers'

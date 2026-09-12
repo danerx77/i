@@ -43,17 +43,27 @@ excluded_binaries = {
     'libssl-3.dll',
 }
 
-datas = [
+_wanted_datas = [
     ('style.css', '.'),
     ('ima_updater.exe', '.'),
     ('shell.dll', '.'),
-    ('shell.exe', '.'),
+    ('shell.exe', '.'),            # lives in the project root; see build_launcher.py
     ('icons', 'icons'),
-    ('fonts', 'fonts'),
+    ('fonts', 'fonts'),            # glyphs.json + nilesoft.ttf
     ('cursors.json', '.'),
     ('cursors_previews.json', '.'),
-    ('cache/plugins.json', 'cache'),
+    ('cache/plugins.json', 'cache'),  # runtime cache, absent in a fresh checkout
+    ('locales', 'locales'),        # i18n catalogues (en.json / pl.json)
 ]
+
+# Optional assets must not break the build: skip whatever this checkout does not
+# have and say so, instead of letting PyInstaller abort.
+datas = []
+for _src, _dst in _wanted_datas:
+    if os.path.exists(_src):
+        datas.append((_src, _dst))
+    else:
+        print(f'[launcher.spec] WARNING: asset not found, skipped: {_src}')
 
 a = Analysis(
     ['launcher.pyw'],
@@ -61,7 +71,7 @@ a = Analysis(
     binaries=[],
     datas=datas,
     hiddenimports=[
-        'encodings', 'glyphs_data', 'modify_widget',
+        'encodings', 'i18n', 'glyphs_data', 'modify_widget',
         'theme_editor_widget', 'theme_switcher_widget', 'cursor_widget',
         'github_client', 'utils', 'cloud_sync', 'nss_error_monitor',
         'plugin_registry', 'nss_parser', 'plugin_workers'
@@ -132,12 +142,43 @@ exe = EXE(
 )
 '''
 
+def stage_assets():
+    """Copy the build inputs that live outside this folder (nothing is overwritten)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(here)
+
+    # shell.exe is shipped next to shell.nss in the project root
+    for name in ('shell.exe', 'shell.dll'):
+        target = os.path.join(here, name)
+        source = os.path.join(project_root, name)
+        if not os.path.exists(target) and os.path.exists(source):
+            shutil.copy2(source, target)
+            print(f"Staged {name} from the project root")
+
+    # the glyph database + icon font (regenerated at runtime, bundled for the exe)
+    fonts_dir = os.path.join(here, 'fonts')
+    os.makedirs(fonts_dir, exist_ok=True)
+    for name in ('glyphs.json', 'nilesoft.ttf'):
+        target = os.path.join(fonts_dir, name)
+        source = os.path.join(project_root, 'Launcher', 'fonts', name)
+        if not os.path.exists(target) and os.path.exists(source) and \
+                os.path.abspath(source) != os.path.abspath(target):
+            shutil.copy2(source, target)
+            print(f"Staged fonts/{name}")
+
+    for required in ('locales/en.json', 'locales/pl.json'):
+        if not os.path.exists(os.path.join(here, *required.split('/'))):
+            print(f"Warning: {required} is missing - run tools/build_catalog.py")
+
+
 def build():
     try:
         from utils import generate_glyphs_data
         generate_glyphs_data()
     except Exception as error_message:
         print(f"Warning: Could not generate glyphs_data: {error_message}")
+
+    stage_assets()
 
     if os.path.exists('dist'):
         shutil.rmtree('dist', ignore_errors=True)
