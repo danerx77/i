@@ -1288,27 +1288,27 @@ class NSSItemDelegate(QStyledItemDelegate):
             wid = str(props.get('where.id', '')).strip('\'" ')
             if wid:
                 draw_part(i18n.translate("Modify ID: "), "#e78284", f_bold)
-                draw_part(wid, "#ffffff", f_bold)
+                draw_part(get_friendly_id_name(wid), "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
                     draw_part(display_title(props['title']), "#e78284", f_bold)
             elif props.get('find'):
                 draw_part(i18n.translate("Modify: "), "#e78284", f_bold)
-                draw_part(props['find'].strip(chr(39)+chr(34)), "#ffffff", f_bold)
+                draw_part(display_title(props['find']), "#ffffff", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
-                    draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
+                    draw_part(display_title(props['title']), "#e78284", f_bold)
             elif props.get('type'):
                 draw_part(i18n.translate(f"All {props['type'].title()}s"), "#e78284", f_bold)
                 if props.get('title'):
                     draw_part(" \u2192 ", "#A0A0A0", f_small)
-                    draw_part(props['title'].strip(chr(39)+chr(34)), "#e78284", f_bold)
+                    draw_part(display_title(props['title']), "#e78284", f_bold)
             else:
                 draw_part(i18n.translate("Global Rule"), "#e78284", f_bold)
         else:
             # item or menu - show title
             raw_title = props.get('title') or props.get('find') or props.get('where') or props.get('cmd') or 'Unnamed'
-            t_str = str(raw_title).strip(chr(39)+chr(34))
+            t_str = display_title(str(raw_title).strip(chr(39)+chr(34)))
             file_name = os.path.basename(data.get('file', ''))
             label = f"{file_name}: " if file_name else ""
             draw_part(label, "#e78284", f_bold)
@@ -1316,7 +1316,7 @@ class NSSItemDelegate(QStyledItemDelegate):
             
         if props.get('in'):
             draw_part(" " + i18n.translate("in") + " ", "#A0A0A0", f_small)
-            draw_part(props['in'].strip(chr(39)+chr(34)), "#ea999c", f_bold)
+            draw_part(display_title(props['in']), "#ea999c", f_bold)
         
         # Badges / Summary
         bx = rect.x() + 85; by = rect.y() + 48; acts = []

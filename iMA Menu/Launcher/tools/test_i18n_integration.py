@@ -166,6 +166,29 @@ mw.set_pl_title_hints(False)
 check(mw.display_title("Uninstall") == "Uninstall", "title translation can be switched off")
 mw.set_pl_title_hints(True)
 
+section("delegate paints translated titles")
+from PyQt5.QtGui import QPixmap, QPainter                          # noqa: E402
+from PyQt5.QtWidgets import QStyleOptionViewItem                  # noqa: E402
+
+model = mw.NSSItemModel()
+model.set_items([{
+    "type": "modify", "file": "modify.nss",
+    "props": {"find": "'display settings'", "title": "'Display'"},
+}])
+view = mw.SingleItemListView()
+view.setModel(model)
+delegate = mw.NSSItemDelegate(view)
+view.setItemDelegate(delegate)
+pm = QPixmap(560, 96); pm.fill()
+painter = QPainter(pm)
+option = QStyleOptionViewItem()
+option.rect = pm.rect()
+delegate.paint(painter, option, model.index(0, 0))
+painter.end()
+check(mw.display_title("display settings") == "Ustawienia wyświetlania",
+      "find-value title maps to Polish for the delegate")
+check(mw.display_title("Display") == "Wyświetlanie", "rename target maps to Polish")
+
 section("live language switch")
 i18n.set_language("en")
 check(dialog.tl.text() == "Manage Imports", "dialog title back to English")

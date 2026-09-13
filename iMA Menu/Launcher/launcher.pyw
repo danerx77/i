@@ -3493,6 +3493,13 @@ class PluginManager(QWidget):
             hints_sw.stateChanged.connect(lambda v: _mw.set_pl_title_hints(v))
         except Exception:
             pass
+        try:
+            _cat = i18n._state["catalog"].get(i18n.get_language(), {})
+            self.lang_combo.setToolTip(
+                f"i18n build marker: {len(_cat.get('messages', {}))} messages / "
+                f"{len(_cat.get('patterns', {}))} patterns ({i18n.get_language()})")
+        except Exception:
+            pass
 
         self._create_import_row(layout)
         self._create_sync_section(layout)
